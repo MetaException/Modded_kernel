@@ -145,7 +145,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		ret = -EINVAL;
 		goto err1;
 	}
-
 	spin_lock(&heap->stat_lock);
 	heap->num_of_buffers++;
 	heap->num_of_alloc_bytes += len;
