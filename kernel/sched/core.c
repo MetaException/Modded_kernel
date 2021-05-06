@@ -2083,10 +2083,10 @@ out:
  * Calls to sched_migrate_to_cpumask_start() cannot nest. This can only be used
  * in process context.
  */
-void sched_migrate_to_cpumask_start(struct cpumask* old_mask,
-	const struct cpumask* dest)
+void sched_migrate_to_cpumask_start(struct cpumask *old_mask,
+				    const struct cpumask *dest)
 {
-	struct task_struct* p = current;
+	struct task_struct *p = current;
 
 	raw_spin_lock_irq(&p->pi_lock);
 	*cpumask_bits(old_mask) = *cpumask_bits(&p->cpus_allowed);
@@ -2099,11 +2099,10 @@ void sched_migrate_to_cpumask_start(struct cpumask* old_mask,
 	set_cpus_allowed_ptr(p, dest);
 }
 
-
-void sched_migrate_to_cpumask_end(const struct cpumask* old_mask,
-	const struct cpumask* dest)
+void sched_migrate_to_cpumask_end(const struct cpumask *old_mask,
+				  const struct cpumask *dest)
 {
-	struct task_struct* p = current;
+	struct task_struct *p = current;
 
 	/*
 	 * Check that cpus_allowed didn't change from what it was temporarily
@@ -2112,10 +2111,9 @@ void sched_migrate_to_cpumask_end(const struct cpumask* old_mask,
 	 */
 	raw_spin_lock_irq(&p->pi_lock);
 	if (*cpumask_bits(&p->cpus_allowed) == *cpumask_bits(dest)) {
-		struct rq* rq = this_rq();
+		struct rq *rq = this_rq();
 
 		raw_spin_lock(&rq->lock);
-		update_rq_clock(rq);
 		do_set_cpus_allowed(p, old_mask);
 		raw_spin_unlock(&rq->lock);
 	}
