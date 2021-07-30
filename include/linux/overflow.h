@@ -39,14 +39,14 @@
 
 
 #ifdef COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW
-/*
- * For simplicity and code hygiene, the fallback code below insists on
- * a, b and *d having the same type (similar to the min() and max()
- * macros), whereas gcc's type-generic overflow checkers accept
- * different types. Hence we don't just make check_add_overflow an
- * alias for __builtin_add_overflow, but add type checks similar to
- * below.
- */
+ /*
+  * For simplicity and code hygiene, the fallback code below insists on
+  * a, b and *d having the same type (similar to the min() and max()
+  * macros), whereas gcc's type-generic overflow checkers accept
+  * different types. Hence we don't just make check_add_overflow an
+  * alias for __builtin_add_overflow, but add type checks similar to
+  * below.
+  */
 #define check_add_overflow(a, b, d) ({		\
 	typeof(a) __a = (a);			\
 	typeof(b) __b = (b);			\
@@ -77,7 +77,7 @@
 #else
 
 
-/* Checking for unsigned overflow is relatively easy without causing UB. */
+ /* Checking for unsigned overflow is relatively easy without causing UB. */
 #define __unsigned_add_overflow(a, b, d) ({	\
 	typeof(a) __a = (a);			\
 	typeof(b) __b = (b);			\
@@ -111,22 +111,22 @@
 	  __a > 0 && __b > type_max(typeof(__b)) / __a;	 \
 })
 
-/*
- * For signed types, detecting overflow is much harder, especially if
- * we want to avoid UB. But the interface of these macros is such that
- * we must provide a result in *d, and in fact we must produce the
- * result promised by gcc's builtins, which is simply the possibly
- * wrapped-around value. Fortunately, we can just formally do the
- * operations in the widest relevant unsigned type (u64) and then
- * truncate the result - gcc is smart enough to generate the same code
- * with and without the (u64) casts.
- */
+ /*
+  * For signed types, detecting overflow is much harder, especially if
+  * we want to avoid UB. But the interface of these macros is such that
+  * we must provide a result in *d, and in fact we must produce the
+  * result promised by gcc's builtins, which is simply the possibly
+  * wrapped-around value. Fortunately, we can just formally do the
+  * operations in the widest relevant unsigned type (u64) and then
+  * truncate the result - gcc is smart enough to generate the same code
+  * with and without the (u64) casts.
+  */
 
-/*
- * Adding two signed integers can overflow only if they have the same
- * sign, and overflow has happened iff the result has the opposite
- * sign.
- */
+  /*
+   * Adding two signed integers can overflow only if they have the same
+   * sign, and overflow has happened iff the result has the opposite
+   * sign.
+   */
 #define __signed_add_overflow(a, b, d) ({	\
 	typeof(a) __a = (a);			\
 	typeof(b) __b = (b);			\
@@ -138,11 +138,11 @@
 		& type_min(typeof(__a))) != 0;	\
 })
 
-/*
- * Subtraction is similar, except that overflow can now happen only
- * when the signs are opposite. In this case, overflow has happened if
- * the result has the opposite sign of a.
- */
+   /*
+	* Subtraction is similar, except that overflow can now happen only
+	* when the signs are opposite. In this case, overflow has happened if
+	* the result has the opposite sign of a.
+	*/
 #define __signed_sub_overflow(a, b, d) ({	\
 	typeof(a) __a = (a);			\
 	typeof(b) __b = (b);			\
@@ -154,21 +154,21 @@
 		& type_min(typeof(__a))) != 0;	\
 })
 
-/*
- * Signed multiplication is rather hard. gcc always follows C99, so
- * division is truncated towards 0. This means that we can write the
- * overflow check like this:
- *
- * (a > 0 && (b > MAX/a || b < MIN/a)) ||
- * (a < -1 && (b > MIN/a || b < MAX/a) ||
- * (a == -1 && b == MIN)
- *
- * The redundant casts of -1 are to silence an annoying -Wtype-limits
- * (included in -Wextra) warning: When the type is u8 or u16, the
- * __b_c_e in check_mul_overflow obviously selects
- * __unsigned_mul_overflow, but unfortunately gcc still parses this
- * code and warns about the limited range of __b.
- */
+	/*
+	 * Signed multiplication is rather hard. gcc always follows C99, so
+	 * division is truncated towards 0. This means that we can write the
+	 * overflow check like this:
+	 *
+	 * (a > 0 && (b > MAX/a || b < MIN/a)) ||
+	 * (a < -1 && (b > MIN/a || b < MAX/a) ||
+	 * (a == -1 && b == MIN)
+	 *
+	 * The redundant casts of -1 are to silence an annoying -Wtype-limits
+	 * (included in -Wextra) warning: When the type is u8 or u16, the
+	 * __b_c_e in check_mul_overflow obviously selects
+	 * __unsigned_mul_overflow, but unfortunately gcc still parses this
+	 * code and warns about the limited range of __b.
+	 */
 
 #define __signed_mul_overflow(a, b, d) ({				\
 	typeof(a) __a = (a);						\
@@ -203,98 +203,25 @@
 
 #endif /* COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW */
 
-/**
- * array_size() - Calculate size of 2-dimensional array.
- *
- * @a: dimension one
- * @b: dimension two
- *
- * Calculates size of 2-dimensional array: @a * @b.
- *
- * Returns: number of bytes needed to represent the array or SIZE_MAX on
- * overflow.
- */
-static inline __must_check size_t array_size(size_t a, size_t b)
-{
-	size_t bytes;
-
-	if (check_mul_overflow(a, b, &bytes))
-		return SIZE_MAX;
-
-	return bytes;
-}
-
-/**
- * array3_size() - Calculate size of 3-dimensional array.
- *
- * @a: dimension one
- * @b: dimension two
- * @c: dimension three
- *
- * Calculates size of 3-dimensional array: @a * @b * @c.
- *
- * Returns: number of bytes needed to represent the array or SIZE_MAX on
- * overflow.
- */
-static inline __must_check size_t array3_size(size_t a, size_t b, size_t c)
-{
-	size_t bytes;
-
-	if (check_mul_overflow(a, b, &bytes))
-		return SIZE_MAX;
-	if (check_mul_overflow(bytes, c, &bytes))
-		return SIZE_MAX;
-
-	return bytes;
-}
-
-static inline __must_check size_t __ab_c_size(size_t n, size_t size, size_t c)
-{
-	size_t bytes;
-
-	if (check_mul_overflow(n, size, &bytes))
-		return SIZE_MAX;
-	if (check_add_overflow(bytes, c, &bytes))
-		return SIZE_MAX;
-
-	return bytes;
-}
-
-/**
- * struct_size() - Calculate size of structure with trailing array.
- * @p: Pointer to the structure.
- * @member: Name of the array member.
- * @n: Number of elements in the array.
- *
- * Calculates size of memory needed for structure @p followed by an
- * array of @n @member elements.
- *
- * Return: number of bytes needed or SIZE_MAX on overflow.
- */
-#define struct_size(p, member, n)					\
-	__ab_c_size(n,							\
-		    sizeof(*(p)->member) + __must_be_array((p)->member),\
-		    sizeof(*(p)))
-
-/** check_shl_overflow() - Calculate a left-shifted value and check overflow
- *
- * @a: Value to be shifted
- * @s: How many bits left to shift
- * @d: Pointer to where to store the result
- *
- * Computes *@d = (@a << @s)
- *
- * Returns true if '*d' cannot hold the result or when 'a << s' doesn't
- * make sense. Example conditions:
- * - 'a << s' causes bits to be lost when stored in *d.
- * - 's' is garbage (e.g. negative) or so large that the result of
- *   'a << s' is guaranteed to be 0.
- * - 'a' is negative.
- * - 'a << s' sets the sign bit, if any, in '*d'.
- *
- * '*d' will hold the results of the attempted shift, but is not
- * considered "safe for use" if false is returned.
- */
+	 /** check_shl_overflow() - Calculate a left-shifted value and check overflow
+	  *
+	  * @a: Value to be shifted
+	  * @s: How many bits left to shift
+	  * @d: Pointer to where to store the result
+	  *
+	  * Computes *@d = (@a << @s)
+	  *
+	  * Returns true if '*d' cannot hold the result or when 'a << s' doesn't
+	  * make sense. Example conditions:
+	  * - 'a << s' causes bits to be lost when stored in *d.
+	  * - 's' is garbage (e.g. negative) or so large that the result of
+	  *   'a << s' is guaranteed to be 0.
+	  * - 'a' is negative.
+	  * - 'a << s' sets the sign bit, if any, in '*d'.
+	  *
+	  * '*d' will hold the results of the attempted shift, but is not
+	  * considered "safe for use" if false is returned.
+	  */
 #define check_shl_overflow(a, s, d) ({					\
 	typeof(a) _a = a;						\
 	typeof(s) _s = s;						\
@@ -307,17 +234,17 @@ static inline __must_check size_t __ab_c_size(size_t n, size_t size, size_t c)
 		(*_d >> _to_shift) != _a);				\
 })
 
-/**
- * array_size() - Calculate size of 2-dimensional array.
- *
- * @a: dimension one
- * @b: dimension two
- *
- * Calculates size of 2-dimensional array: @a * @b.
- *
- * Returns: number of bytes needed to represent the array or SIZE_MAX on
- * overflow.
- */
+	  /**
+	   * array_size() - Calculate size of 2-dimensional array.
+	   *
+	   * @a: dimension one
+	   * @b: dimension two
+	   *
+	   * Calculates size of 2-dimensional array: @a * @b.
+	   *
+	   * Returns: number of bytes needed to represent the array or SIZE_MAX on
+	   * overflow.
+	   */
 static inline __must_check size_t array_size(size_t a, size_t b)
 {
 	size_t bytes;
