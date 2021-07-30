@@ -1,4 +1,3 @@
-
 #include <linux/wait.h>
 #include <linux/backing-dev.h>
 #include <linux/kthread.h>
@@ -13,13 +12,13 @@
 #include <trace/events/writeback.h>
 
 struct backing_dev_info noop_backing_dev_info = {
-	.name		= "noop",
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
+	.name = "noop",
+	.capabilities = BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 
-static struct class *bdi_class;
-static const char *bdi_unknown_name = "(unknown)";
+static struct class* bdi_class;
+const char* bdi_unknown_name = "(unknown)";
 
 /*
  * bdi_lock protects updates to bdi_list. bdi_list has RCU reader side
@@ -29,28 +28,28 @@ DEFINE_SPINLOCK(bdi_lock);
 LIST_HEAD(bdi_list);
 
 /* bdi_wq serves all asynchronous writeback tasks */
-struct workqueue_struct *bdi_wq;
+struct workqueue_struct* bdi_wq;
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-static struct dentry *bdi_debug_root;
+static struct dentry* bdi_debug_root;
 
 static void bdi_debug_init(void)
 {
 	bdi_debug_root = debugfs_create_dir("bdi", NULL);
 }
 
-static int bdi_debug_stats_show(struct seq_file *m, void *v)
+static int bdi_debug_stats_show(struct seq_file* m, void* v)
 {
-	struct backing_dev_info *bdi = m->private;
-	struct bdi_writeback *wb = &bdi->wb;
+	struct backing_dev_info* bdi = m->private;
+	struct bdi_writeback* wb = &bdi->wb;
 	unsigned long background_thresh;
 	unsigned long dirty_thresh;
 	unsigned long wb_thresh;
 	unsigned long nr_dirty, nr_io, nr_more_io, nr_dirty_time;
-	struct inode *inode;
+	struct inode* inode;
 
 	nr_dirty = nr_io = nr_more_io = nr_dirty_time = 0;
 	spin_lock(&wb->list_lock);
@@ -70,58 +69,58 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	seq_printf(m,
-		   "BdiWriteback:       %10lu kB\n"
-		   "BdiReclaimable:     %10lu kB\n"
-		   "BdiDirtyThresh:     %10lu kB\n"
-		   "DirtyThresh:        %10lu kB\n"
-		   "BackgroundThresh:   %10lu kB\n"
-		   "BdiDirtied:         %10lu kB\n"
-		   "BdiWritten:         %10lu kB\n"
-		   "BdiWriteBandwidth:  %10lu kBps\n"
-		   "b_dirty:            %10lu\n"
-		   "b_io:               %10lu\n"
-		   "b_more_io:          %10lu\n"
-		   "b_dirty_time:       %10lu\n"
-		   "bdi_list:           %10u\n"
-		   "state:              %10lx\n",
-		   (unsigned long) K(wb_stat(wb, WB_WRITEBACK)),
-		   (unsigned long) K(wb_stat(wb, WB_RECLAIMABLE)),
-		   K(wb_thresh),
-		   K(dirty_thresh),
-		   K(background_thresh),
-		   (unsigned long) K(wb_stat(wb, WB_DIRTIED)),
-		   (unsigned long) K(wb_stat(wb, WB_WRITTEN)),
-		   (unsigned long) K(wb->write_bandwidth),
-		   nr_dirty,
-		   nr_io,
-		   nr_more_io,
-		   nr_dirty_time,
-		   !list_empty(&bdi->bdi_list), bdi->wb.state);
+		"BdiWriteback:       %10lu kB\n"
+		"BdiReclaimable:     %10lu kB\n"
+		"BdiDirtyThresh:     %10lu kB\n"
+		"DirtyThresh:        %10lu kB\n"
+		"BackgroundThresh:   %10lu kB\n"
+		"BdiDirtied:         %10lu kB\n"
+		"BdiWritten:         %10lu kB\n"
+		"BdiWriteBandwidth:  %10lu kBps\n"
+		"b_dirty:            %10lu\n"
+		"b_io:               %10lu\n"
+		"b_more_io:          %10lu\n"
+		"b_dirty_time:       %10lu\n"
+		"bdi_list:           %10u\n"
+		"state:              %10lx\n",
+		(unsigned long)K(wb_stat(wb, WB_WRITEBACK)),
+		(unsigned long)K(wb_stat(wb, WB_RECLAIMABLE)),
+		K(wb_thresh),
+		K(dirty_thresh),
+		K(background_thresh),
+		(unsigned long)K(wb_stat(wb, WB_DIRTIED)),
+		(unsigned long)K(wb_stat(wb, WB_WRITTEN)),
+		(unsigned long)K(wb->write_bandwidth),
+		nr_dirty,
+		nr_io,
+		nr_more_io,
+		nr_dirty_time,
+		!list_empty(&bdi->bdi_list), bdi->wb.state);
 #undef K
 
 	return 0;
 }
 
-static int bdi_debug_stats_open(struct inode *inode, struct file *file)
+static int bdi_debug_stats_open(struct inode* inode, struct file* file)
 {
 	return single_open(file, bdi_debug_stats_show, inode->i_private);
 }
 
 static const struct file_operations bdi_debug_stats_fops = {
-	.open		= bdi_debug_stats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = bdi_debug_stats_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
-static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+static void bdi_debug_register(struct backing_dev_info* bdi, const char* name)
 {
 	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
 	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
-					       bdi, &bdi_debug_stats_fops);
+		bdi, &bdi_debug_stats_fops);
 }
 
-static void bdi_debug_unregister(struct backing_dev_info *bdi)
+static void bdi_debug_unregister(struct backing_dev_info* bdi)
 {
 	debugfs_remove(bdi->debug_stats);
 	debugfs_remove(bdi->debug_dir);
@@ -130,20 +129,20 @@ static void bdi_debug_unregister(struct backing_dev_info *bdi)
 static inline void bdi_debug_init(void)
 {
 }
-static inline void bdi_debug_register(struct backing_dev_info *bdi,
-				      const char *name)
+static inline void bdi_debug_register(struct backing_dev_info* bdi,
+	const char* name)
 {
 }
-static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
+static inline void bdi_debug_unregister(struct backing_dev_info* bdi)
 {
 }
 #endif
 
-static ssize_t read_ahead_kb_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t read_ahead_kb_store(struct device* dev,
+	struct device_attribute* attr,
+	const char* buf, size_t count)
 {
-	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	struct backing_dev_info* bdi = dev_get_drvdata(dev);
 	unsigned long read_ahead_kb;
 	ssize_t ret;
 
@@ -170,10 +169,10 @@ static DEVICE_ATTR_RW(name);
 
 BDI_SHOW(read_ahead_kb, K(bdi->ra_pages))
 
-static ssize_t min_ratio_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t min_ratio_store(struct device* dev,
+	struct device_attribute* attr, const char* buf, size_t count)
 {
-	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	struct backing_dev_info* bdi = dev_get_drvdata(dev);
 	unsigned int ratio;
 	ssize_t ret;
 
@@ -189,10 +188,10 @@ static ssize_t min_ratio_store(struct device *dev,
 }
 BDI_SHOW(min_ratio, bdi->min_ratio)
 
-static ssize_t max_ratio_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t max_ratio_store(struct device* dev,
+	struct device_attribute* attr, const char* buf, size_t count)
 {
-	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	struct backing_dev_info* bdi = dev_get_drvdata(dev);
 	unsigned int ratio;
 	ssize_t ret;
 
@@ -208,18 +207,18 @@ static ssize_t max_ratio_store(struct device *dev,
 }
 BDI_SHOW(max_ratio, bdi->max_ratio)
 
-static ssize_t stable_pages_required_show(struct device *dev,
-					  struct device_attribute *attr,
-					  char *page)
+static ssize_t stable_pages_required_show(struct device* dev,
+	struct device_attribute* attr,
+	char* page)
 {
-	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	struct backing_dev_info* bdi = dev_get_drvdata(dev);
 
-	return snprintf(page, PAGE_SIZE-1, "%d\n",
-			bdi_cap_stable_pages_required(bdi) ? 1 : 0);
+	return snprintf(page, PAGE_SIZE - 1, "%d\n",
+		bdi_cap_stable_pages_required(bdi) ? 1 : 0);
 }
 static DEVICE_ATTR_RO(stable_pages_required);
 
-static struct attribute *bdi_dev_attrs[] = {
+static struct attribute* bdi_dev_attrs[] = {
 	&dev_attr_read_ahead_kb.attr,
 	&dev_attr_min_ratio.attr,
 	&dev_attr_max_ratio.attr,
@@ -241,14 +240,14 @@ static __init int bdi_class_init(void)
 }
 postcore_initcall(bdi_class_init);
 
-static int bdi_init(struct backing_dev_info *bdi);
+static int bdi_init(struct backing_dev_info* bdi);
 
 static int __init default_bdi_init(void)
 {
 	int err;
 
 	bdi_wq = alloc_workqueue("writeback", WQ_MEM_RECLAIM | WQ_FREEZABLE |
-					      WQ_UNBOUND | WQ_SYSFS, 0);
+		WQ_UNBOUND | WQ_SYSFS, 0);
 	if (!bdi_wq)
 		return -ENOMEM;
 
@@ -272,7 +271,7 @@ subsys_initcall(default_bdi_init);
  * We have to be careful not to postpone flush work if it is scheduled for
  * earlier. Thus we use queue_delayed_work().
  */
-void wb_wakeup_delayed(struct bdi_writeback *wb)
+void wb_wakeup_delayed(struct bdi_writeback* wb)
 {
 	unsigned long timeout;
 
@@ -288,8 +287,8 @@ void wb_wakeup_delayed(struct bdi_writeback *wb)
  */
 #define INIT_BW		(100 << (20 - PAGE_SHIFT))
 
-static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
-		   int blkcg_id, gfp_t gfp)
+static int wb_init(struct bdi_writeback* wb, struct backing_dev_info* bdi,
+	int blkcg_id, gfp_t gfp)
 {
 	int i, err;
 
@@ -346,12 +345,12 @@ out_put_bdi:
 	return err;
 }
 
-static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb);
+static void cgwb_remove_from_bdi_list(struct bdi_writeback* wb);
 
 /*
  * Remove bdi from the global list and shutdown any threads we have running
  */
-static void wb_shutdown(struct bdi_writeback *wb)
+static void wb_shutdown(struct bdi_writeback* wb)
 {
 	/* Make sure nobody queues further work */
 	spin_lock_bh(&wb->work_lock);
@@ -372,7 +371,7 @@ static void wb_shutdown(struct bdi_writeback *wb)
 	WARN_ON(!list_empty(&wb->work_list));
 }
 
-static void wb_exit(struct bdi_writeback *wb)
+static void wb_exit(struct bdi_writeback* wb)
 {
 	int i;
 
@@ -397,7 +396,7 @@ static void wb_exit(struct bdi_writeback *wb)
  * protected.
  */
 static DEFINE_SPINLOCK(cgwb_lock);
-static struct workqueue_struct *cgwb_release_wq;
+static struct workqueue_struct* cgwb_release_wq;
 
 /**
  * wb_congested_get_create - get or create a wb_congested
@@ -409,11 +408,11 @@ static struct workqueue_struct *cgwb_release_wq;
  * The returned wb_congested has its reference count incremented.  Returns
  * NULL on failure.
  */
-struct bdi_writeback_congested *
-wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+struct bdi_writeback_congested*
+	wb_congested_get_create(struct backing_dev_info* bdi, int blkcg_id, gfp_t gfp)
 {
-	struct bdi_writeback_congested *new_congested = NULL, *congested;
-	struct rb_node **node, *parent;
+	struct bdi_writeback_congested* new_congested = NULL, * congested;
+	struct rb_node** node, * parent;
 	unsigned long flags;
 retry:
 	spin_lock_irqsave(&cgwb_lock, flags);
@@ -424,7 +423,7 @@ retry:
 	while (*node != NULL) {
 		parent = *node;
 		congested = rb_entry(parent, struct bdi_writeback_congested,
-				     rb_node);
+			rb_node);
 		if (congested->blkcg_id < blkcg_id)
 			node = &parent->rb_left;
 		else if (congested->blkcg_id > blkcg_id)
@@ -467,7 +466,7 @@ found:
  *
  * Put @congested and destroy it if the refcnt reaches zero.
  */
-void wb_congested_put(struct bdi_writeback_congested *congested)
+void wb_congested_put(struct bdi_writeback_congested* congested)
 {
 	unsigned long flags;
 
@@ -480,7 +479,7 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
 	/* bdi might already have been destroyed leaving @congested unlinked */
 	if (congested->__bdi) {
 		rb_erase(&congested->rb_node,
-			 &congested->__bdi->cgwb_congested_tree);
+			&congested->__bdi->cgwb_congested_tree);
 		congested->__bdi = NULL;
 	}
 
@@ -488,10 +487,10 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
 	kfree(congested);
 }
 
-static void cgwb_release_workfn(struct work_struct *work)
+static void cgwb_release_workfn(struct work_struct* work)
 {
-	struct bdi_writeback *wb = container_of(work, struct bdi_writeback,
-						release_work);
+	struct bdi_writeback* wb = container_of(work, struct bdi_writeback,
+		release_work);
 
 	mutex_lock(&wb->bdi->cgwb_release_mutex);
 	wb_shutdown(wb);
@@ -506,14 +505,14 @@ static void cgwb_release_workfn(struct work_struct *work)
 	kfree_rcu(wb, rcu);
 }
 
-static void cgwb_release(struct percpu_ref *refcnt)
+static void cgwb_release(struct percpu_ref* refcnt)
 {
-	struct bdi_writeback *wb = container_of(refcnt, struct bdi_writeback,
-						refcnt);
+	struct bdi_writeback* wb = container_of(refcnt, struct bdi_writeback,
+		refcnt);
 	queue_work(cgwb_release_wq, &wb->release_work);
 }
 
-static void cgwb_kill(struct bdi_writeback *wb)
+static void cgwb_kill(struct bdi_writeback* wb)
 {
 	lockdep_assert_held(&cgwb_lock);
 
@@ -523,21 +522,21 @@ static void cgwb_kill(struct bdi_writeback *wb)
 	percpu_ref_kill(&wb->refcnt);
 }
 
-static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
+static void cgwb_remove_from_bdi_list(struct bdi_writeback* wb)
 {
 	spin_lock_irq(&cgwb_lock);
 	list_del_rcu(&wb->bdi_node);
 	spin_unlock_irq(&cgwb_lock);
 }
 
-static int cgwb_create(struct backing_dev_info *bdi,
-		       struct cgroup_subsys_state *memcg_css, gfp_t gfp)
+static int cgwb_create(struct backing_dev_info* bdi,
+	struct cgroup_subsys_state* memcg_css, gfp_t gfp)
 {
-	struct mem_cgroup *memcg;
-	struct cgroup_subsys_state *blkcg_css;
-	struct blkcg *blkcg;
-	struct list_head *memcg_cgwb_list, *blkcg_cgwb_list;
-	struct bdi_writeback *wb;
+	struct mem_cgroup* memcg;
+	struct cgroup_subsys_state* blkcg_css;
+	struct blkcg* blkcg;
+	struct list_head* memcg_cgwb_list, * blkcg_cgwb_list;
+	struct bdi_writeback* wb;
 	unsigned long flags;
 	int ret = 0;
 
@@ -591,7 +590,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	ret = -ENODEV;
 	spin_lock_irqsave(&cgwb_lock, flags);
 	if (test_bit(WB_registered, &bdi->wb.state) &&
-	    blkcg_cgwb_list->next && memcg_cgwb_list->next) {
+		blkcg_cgwb_list->next && memcg_cgwb_list->next) {
 		/* we might have raced another instance of this function */
 		ret = radix_tree_insert(&bdi->cgwb_tree, memcg_css->id, wb);
 		if (!ret) {
@@ -647,11 +646,11 @@ out_put:
  * each lookup.  On mismatch, the existing wb is discarded and a new one is
  * created.
  */
-struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
-				    struct cgroup_subsys_state *memcg_css,
-				    gfp_t gfp)
+struct bdi_writeback* wb_get_create(struct backing_dev_info* bdi,
+	struct cgroup_subsys_state* memcg_css,
+	gfp_t gfp)
 {
-	struct bdi_writeback *wb;
+	struct bdi_writeback* wb;
 
 	might_sleep_if(gfpflags_allow_blocking(gfp));
 
@@ -662,13 +661,13 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 		rcu_read_lock();
 		wb = radix_tree_lookup(&bdi->cgwb_tree, memcg_css->id);
 		if (wb) {
-			struct cgroup_subsys_state *blkcg_css;
+			struct cgroup_subsys_state* blkcg_css;
 
 			/* see whether the blkcg association has changed */
 			blkcg_css = cgroup_get_e_css(memcg_css->cgroup,
-						     &io_cgrp_subsys);
+				&io_cgrp_subsys);
 			if (unlikely(wb->blkcg_css != blkcg_css ||
-				     !wb_tryget(wb)))
+				!wb_tryget(wb)))
 				wb = NULL;
 			css_put(blkcg_css);
 		}
@@ -678,7 +677,7 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 	return wb;
 }
 
-static int cgwb_bdi_init(struct backing_dev_info *bdi)
+static int cgwb_bdi_init(struct backing_dev_info* bdi)
 {
 	int ret;
 
@@ -695,11 +694,11 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
 	return ret;
 }
 
-static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
+static void cgwb_bdi_unregister(struct backing_dev_info* bdi)
 {
 	struct radix_tree_iter iter;
-	void **slot;
-	struct bdi_writeback *wb;
+	void** slot;
+	struct bdi_writeback* wb;
 
 	WARN_ON(test_bit(WB_registered, &bdi->wb.state));
 
@@ -712,7 +711,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
 	spin_lock_irq(&cgwb_lock);
 	while (!list_empty(&bdi->wb_list)) {
 		wb = list_first_entry(&bdi->wb_list, struct bdi_writeback,
-				      bdi_node);
+			bdi_node);
 		spin_unlock_irq(&cgwb_lock);
 		wb_shutdown(wb);
 		spin_lock_irq(&cgwb_lock);
@@ -727,11 +726,11 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
  *
  * Also prevents creation of any new wb's associated with @memcg.
  */
-void wb_memcg_offline(struct mem_cgroup *memcg)
+void wb_memcg_offline(struct mem_cgroup* memcg)
 {
 	LIST_HEAD(to_destroy);
-	struct list_head *memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
-	struct bdi_writeback *wb, *next;
+	struct list_head* memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+	struct bdi_writeback* wb, * next;
 
 	spin_lock_irq(&cgwb_lock);
 	list_for_each_entry_safe(wb, next, memcg_cgwb_list, memcg_node)
@@ -746,10 +745,10 @@ void wb_memcg_offline(struct mem_cgroup *memcg)
  *
  * Also prevents creation of any new wb's associated with @blkcg.
  */
-void wb_blkcg_offline(struct blkcg *blkcg)
+void wb_blkcg_offline(struct blkcg* blkcg)
 {
 	LIST_HEAD(to_destroy);
-	struct bdi_writeback *wb, *next;
+	struct bdi_writeback* wb, * next;
 
 	spin_lock_irq(&cgwb_lock);
 	list_for_each_entry_safe(wb, next, &blkcg->cgwb_list, blkcg_node)
@@ -758,13 +757,13 @@ void wb_blkcg_offline(struct blkcg *blkcg)
 	spin_unlock_irq(&cgwb_lock);
 }
 
-static void cgwb_bdi_exit(struct backing_dev_info *bdi)
+static void cgwb_bdi_exit(struct backing_dev_info* bdi)
 {
-	struct rb_node *rbn;
+	struct rb_node* rbn;
 
 	spin_lock_irq(&cgwb_lock);
 	while ((rbn = rb_first(&bdi->cgwb_congested_tree))) {
-		struct bdi_writeback_congested *congested =
+		struct bdi_writeback_congested* congested =
 			rb_entry(rbn, struct bdi_writeback_congested, rb_node);
 
 		rb_erase(rbn, &bdi->cgwb_congested_tree);
@@ -773,7 +772,7 @@ static void cgwb_bdi_exit(struct backing_dev_info *bdi)
 	spin_unlock_irq(&cgwb_lock);
 }
 
-static void cgwb_bdi_register(struct backing_dev_info *bdi)
+static void cgwb_bdi_register(struct backing_dev_info* bdi)
 {
 	spin_lock_irq(&cgwb_lock);
 	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
@@ -797,7 +796,7 @@ subsys_initcall(cgwb_init);
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-static int cgwb_bdi_init(struct backing_dev_info *bdi)
+static int cgwb_bdi_init(struct backing_dev_info* bdi)
 {
 	int err;
 
@@ -815,26 +814,26 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
 	return 0;
 }
 
-static void cgwb_bdi_unregister(struct backing_dev_info *bdi) { }
+static void cgwb_bdi_unregister(struct backing_dev_info* bdi) { }
 
-static void cgwb_bdi_exit(struct backing_dev_info *bdi)
+static void cgwb_bdi_exit(struct backing_dev_info* bdi)
 {
 	wb_congested_put(bdi->wb_congested);
 }
 
-static void cgwb_bdi_register(struct backing_dev_info *bdi)
+static void cgwb_bdi_register(struct backing_dev_info* bdi)
 {
 	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
 }
 
-static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
+static void cgwb_remove_from_bdi_list(struct bdi_writeback* wb)
 {
 	list_del_rcu(&wb->bdi_node);
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
-static int bdi_init(struct backing_dev_info *bdi)
+static int bdi_init(struct backing_dev_info* bdi)
 {
 	int ret;
 
@@ -853,12 +852,12 @@ static int bdi_init(struct backing_dev_info *bdi)
 	return ret;
 }
 
-struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
+struct backing_dev_info* bdi_alloc_node(gfp_t gfp_mask, int node_id)
 {
-	struct backing_dev_info *bdi;
+	struct backing_dev_info* bdi;
 
 	bdi = kmalloc_node(sizeof(struct backing_dev_info),
-			   gfp_mask | __GFP_ZERO, node_id);
+		gfp_mask | __GFP_ZERO, node_id);
 	if (!bdi)
 		return NULL;
 
@@ -870,15 +869,14 @@ struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
 }
 EXPORT_SYMBOL(bdi_alloc_node);
 
-int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
+int bdi_register_va(struct backing_dev_info* bdi, const char* fmt, va_list args)
 {
-	struct device *dev;
+	struct device* dev;
 
 	if (bdi->dev)	/* The driver needs to use separate queues per device */
 		return 0;
 
-	vsnprintf(bdi->dev_name, sizeof(bdi->dev_name), fmt, args);
-	dev = device_create(bdi_class, NULL, MKDEV(0, 0), bdi, bdi->dev_name);
+	dev = device_create_vargs(bdi_class, NULL, MKDEV(0, 0), bdi, fmt, args);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
@@ -897,7 +895,7 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 }
 EXPORT_SYMBOL(bdi_register_va);
 
-int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...)
+int bdi_register(struct backing_dev_info* bdi, const char* fmt, ...)
 {
 	va_list args;
 	int ret;
@@ -909,7 +907,7 @@ int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...)
 }
 EXPORT_SYMBOL(bdi_register);
 
-int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner)
+int bdi_register_owner(struct backing_dev_info* bdi, struct device* owner)
 {
 	int rc;
 
@@ -927,7 +925,7 @@ EXPORT_SYMBOL(bdi_register_owner);
 /*
  * Remove bdi from bdi_list, and ensure that it is no longer visible
  */
-static void bdi_remove_from_list(struct backing_dev_info *bdi)
+static void bdi_remove_from_list(struct backing_dev_info* bdi)
 {
 	spin_lock_bh(&bdi_lock);
 	list_del_rcu(&bdi->bdi_list);
@@ -936,7 +934,7 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
 	synchronize_rcu_expedited();
 }
 
-void bdi_unregister(struct backing_dev_info *bdi)
+void bdi_unregister(struct backing_dev_info* bdi)
 {
 	/* make sure nobody finds us on the bdi_list anymore */
 	bdi_remove_from_list(bdi);
@@ -955,10 +953,10 @@ void bdi_unregister(struct backing_dev_info *bdi)
 	}
 }
 
-static void release_bdi(struct kref *ref)
+static void release_bdi(struct kref* ref)
 {
-	struct backing_dev_info *bdi =
-			container_of(ref, struct backing_dev_info, refcnt);
+	struct backing_dev_info* bdi =
+		container_of(ref, struct backing_dev_info, refcnt);
 
 	if (test_bit(WB_registered, &bdi->wb.state))
 		bdi_unregister(bdi);
@@ -968,29 +966,21 @@ static void release_bdi(struct kref *ref)
 	kfree(bdi);
 }
 
-void bdi_put(struct backing_dev_info *bdi)
+void bdi_put(struct backing_dev_info* bdi)
 {
 	kref_put(&bdi->refcnt, release_bdi);
 }
 EXPORT_SYMBOL(bdi_put);
 
-const char *bdi_dev_name(struct backing_dev_info *bdi)
-{
-	if (!bdi || !bdi->dev)
-		return bdi_unknown_name;
-	return bdi->dev_name;
-}
-EXPORT_SYMBOL_GPL(bdi_dev_name);
-
 static wait_queue_head_t congestion_wqh[2] = {
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
-	};
+};
 static atomic_t nr_wb_congested[2];
 
-void clear_wb_congested(struct bdi_writeback_congested *congested, int sync)
+void clear_wb_congested(struct bdi_writeback_congested* congested, int sync)
 {
-	wait_queue_head_t *wqh = &congestion_wqh[sync];
+	wait_queue_head_t* wqh = &congestion_wqh[sync];
 	enum wb_congested_state bit;
 
 	bit = sync ? WB_sync_congested : WB_async_congested;
@@ -1002,7 +992,7 @@ void clear_wb_congested(struct bdi_writeback_congested *congested, int sync)
 }
 EXPORT_SYMBOL(clear_wb_congested);
 
-void set_wb_congested(struct bdi_writeback_congested *congested, int sync)
+void set_wb_congested(struct bdi_writeback_congested* congested, int sync)
 {
 	enum wb_congested_state bit;
 
@@ -1026,14 +1016,14 @@ long congestion_wait(int sync, long timeout)
 	long ret;
 	unsigned long start = jiffies;
 	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &congestion_wqh[sync];
+	wait_queue_head_t* wqh = &congestion_wqh[sync];
 
 	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
 	ret = io_schedule_timeout(timeout);
 	finish_wait(wqh, &wait);
 
 	trace_writeback_congestion_wait(jiffies_to_usecs(timeout),
-					jiffies_to_usecs(jiffies - start));
+		jiffies_to_usecs(jiffies - start));
 
 	return ret;
 }
@@ -1057,12 +1047,12 @@ EXPORT_SYMBOL(congestion_wait);
  * it is the number of jiffies that were still remaining when the function
  * returned. return_value == timeout implies the function did not sleep.
  */
-long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout)
+long wait_iff_congested(struct pglist_data* pgdat, int sync, long timeout)
 {
 	long ret;
 	unsigned long start = jiffies;
 	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &congestion_wqh[sync];
+	wait_queue_head_t* wqh = &congestion_wqh[sync];
 
 	/*
 	 * If there is no congestion, or heavy congestion is not being
@@ -1070,7 +1060,7 @@ long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout)
 	 * of sleeping on the congestion queue
 	 */
 	if (atomic_read(&nr_wb_congested[sync]) == 0 ||
-	    !test_bit(PGDAT_CONGESTED, &pgdat->flags)) {
+		!test_bit(PGDAT_CONGESTED, &pgdat->flags)) {
 		cond_resched();
 
 		/* In case we scheduled, work out time remaining */
@@ -1088,14 +1078,14 @@ long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout)
 
 out:
 	trace_writeback_wait_iff_congested(jiffies_to_usecs(timeout),
-					jiffies_to_usecs(jiffies - start));
+		jiffies_to_usecs(jiffies - start));
 
 	return ret;
 }
 EXPORT_SYMBOL(wait_iff_congested);
 
-int pdflush_proc_obsolete(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+int pdflush_proc_obsolete(struct ctl_table* table, int write,
+	void __user* buffer, size_t* lenp, loff_t* ppos)
 {
 	char kbuf[] = "0\n";
 
@@ -1107,7 +1097,7 @@ int pdflush_proc_obsolete(struct ctl_table *table, int write,
 	if (copy_to_user(buffer, kbuf, sizeof(kbuf)))
 		return -EFAULT;
 	pr_warn_once("%s exported in /proc is scheduled for removal\n",
-		     table->procname);
+		table->procname);
 
 	*lenp = 2;
 	*ppos += *lenp;
