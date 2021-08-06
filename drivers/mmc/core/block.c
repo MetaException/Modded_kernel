@@ -3560,7 +3560,7 @@ static int mmc_blk_cmdq_issue_drv_op(struct mmc_card* card,
 	ret = mmc_cmdq_halt_on_empty_queue(card->host);
 	if (ret) {
 		pr_err("%s: failed to halt on empty queue\n",
-			mmc_hostname(card->host));
+		mmc_hostname(card->host));
 		blk_end_request_all(req, BLK_STS_IOERR);
 		mmc_put_card(card);
 		return ret;

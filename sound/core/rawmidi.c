@@ -661,6 +661,11 @@ int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 			return -ENOMEM;
 		}
 		spin_lock_irqsave(&runtime->lock, flags);
+		if (runtime->buffer_ref) {
+			spin_unlock_irq(&runtime->lock);
+			kfree(newbuf);
+			return -EBUSY;
+		}
 		oldbuf = runtime->buffer;
 		runtime->buffer = newbuf;
 		runtime->buffer_size = params->buffer_size;
@@ -974,6 +979,7 @@ static long snd_rawmidi_kernel_read1(struct snd_rawmidi_substream *substream,
 				     unsigned char *kernelbuf, long count)
 {
 	unsigned long flags;
+	int err;
 	long result = 0, count1;
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 	unsigned long appl_ptr;
@@ -1001,7 +1007,7 @@ static long snd_rawmidi_kernel_read1(struct snd_rawmidi_substream *substream,
 			if (copy_to_user(userbuf + result,
 					 runtime->buffer + appl_ptr, count1)) {
 				mutex_unlock(&runtime->realloc_mutex);
-				return result > 0 ? result : -EFAULT;
+				err = -EFAULT;
 			}
 			spin_lock_irqsave(&runtime->lock, flags);
 		}
@@ -1011,7 +1017,7 @@ static long snd_rawmidi_kernel_read1(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore(&runtime->lock, flags);
 	if (userbuf)
 		mutex_unlock(&runtime->realloc_mutex);
-	return result;
+	return result > 0 ? result : err;
 }
 
 long snd_rawmidi_kernel_read(struct snd_rawmidi_substream *substream,

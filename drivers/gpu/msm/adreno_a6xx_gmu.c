@@ -1179,6 +1179,7 @@ static void do_gbif_halt(struct kgsl_device *device, u32 reg, u32 ack_reg,
 
 	dev_err(device->dev, "%s GBIF halt timed out\n", client);
 }
+
 static void a6xx_llm_glm_handshake(struct kgsl_device *device)
 {
 	unsigned int val;
