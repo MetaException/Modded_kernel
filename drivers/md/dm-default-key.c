@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Google, Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/blk-crypto.h>
@@ -15,7 +14,7 @@
 #define SECTOR_SIZE			(1 << SECTOR_SHIFT)
 
 static const struct dm_default_key_cipher {
-	const char *name;
+	const char* name;
 	enum blk_crypto_mode_num mode_num;
 	int key_size;
 } dm_default_key_ciphers[] = {
@@ -44,9 +43,9 @@ static const struct dm_default_key_cipher {
  * @max_dun: the maximum DUN that may be used (computed from other params)
  */
 struct default_key_c {
-	struct dm_dev *dev;
+	struct dm_dev* dev;
 	sector_t start;
-	const char *cipher_string;
+	const char* cipher_string;
 	u64 iv_offset;
 	unsigned int sector_size;
 	unsigned int sector_bits;
@@ -56,8 +55,8 @@ struct default_key_c {
 	bool set_dun;
 };
 
-static const struct dm_default_key_cipher *
-lookup_cipher(const char *cipher_string)
+static const struct dm_default_key_cipher*
+lookup_cipher(const char* cipher_string)
 {
 	int i;
 
@@ -68,9 +67,9 @@ lookup_cipher(const char *cipher_string)
 	return NULL;
 }
 
-static void default_key_dtr(struct dm_target *ti)
+static void default_key_dtr(struct dm_target* ti)
 {
-	struct default_key_c *dkc = ti->private;
+	struct default_key_c* dkc = ti->private;
 	int err;
 
 	if (dkc->dev) {
@@ -83,16 +82,16 @@ static void default_key_dtr(struct dm_target *ti)
 	kzfree(dkc);
 }
 
-static int default_key_ctr_optional(struct dm_target *ti,
-				    unsigned int argc, char **argv)
+static int default_key_ctr_optional(struct dm_target* ti,
+	unsigned int argc, char** argv)
 {
-	struct default_key_c *dkc = ti->private;
+	struct default_key_c* dkc = ti->private;
 	struct dm_arg_set as;
 	static const struct dm_arg _args[] = {
 		{0, 4, "Invalid number of feature args"},
 	};
 	unsigned int opt_params;
-	const char *opt_string;
+	const char* opt_string;
 	bool iv_large_sectors = false;
 	char dummy;
 	int err;
@@ -112,21 +111,26 @@ static int default_key_ctr_optional(struct dm_target *ti,
 		}
 		if (!strcmp(opt_string, "allow_discards")) {
 			ti->num_discard_bios = 1;
-		} else if (sscanf(opt_string, "sector_size:%u%c",
-				  &dkc->sector_size, &dummy) == 1) {
+		}
+		else if (sscanf(opt_string, "sector_size:%u%c",
+			&dkc->sector_size, &dummy) == 1) {
 			if (dkc->sector_size < SECTOR_SIZE ||
-			    dkc->sector_size > 4096 ||
-			    !is_power_of_2(dkc->sector_size)) {
+				dkc->sector_size > 4096 ||
+				!is_power_of_2(dkc->sector_size)) {
 				ti->error = "Invalid sector_size";
 				return -EINVAL;
 			}
-		} else if (!strcmp(opt_string, "iv_large_sectors")) {
+		}
+		else if (!strcmp(opt_string, "iv_large_sectors")) {
 			iv_large_sectors = true;
-		} else if (!strcmp(opt_string, "wrappedkey_v0")) {
+		}
+		else if (!strcmp(opt_string, "wrappedkey_v0")) {
 			dkc->is_hw_wrapped = true;
-		} else if (!strcmp(opt_string, "set_dun")) {
+		}
+		else if (!strcmp(opt_string, "set_dun")) {
 			dkc->set_dun = true;
-		} else {
+		}
+		else {
 			ti->error = "Invalid feature arguments";
 			return -EINVAL;
 		}
@@ -141,13 +145,13 @@ static int default_key_ctr_optional(struct dm_target *ti,
 	return 0;
 }
 
-static void default_key_adjust_sector_size_and_iv(char **argv,
-						  struct dm_target *ti,
-						  struct default_key_c **dkc,
-						  u8 *raw, u32 size,
-						  bool is_legacy)
+static void default_key_adjust_sector_size_and_iv(char** argv,
+	struct dm_target* ti,
+	struct default_key_c** dkc,
+	u8* raw, u32 size,
+	bool is_legacy)
 {
-	struct dm_dev *dev;
+	struct dm_dev* dev;
 	int i;
 	union {
 		u8 bytes[BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE];
@@ -165,8 +169,8 @@ static void default_key_adjust_sector_size_and_iv(char **argv,
 		memcpy(raw, key_new.bytes, size);
 
 		if ((ti->len & (((*dkc)->sector_size >> SECTOR_SHIFT) - 1)) ||
-		    ((*dkc)->dev->bdev->bd_disk->disk_name[0] &&
-		     !strcmp((*dkc)->dev->bdev->bd_disk->disk_name, "mmcblk0")))
+			((*dkc)->dev->bdev->bd_disk->disk_name[0] &&
+				!strcmp((*dkc)->dev->bdev->bd_disk->disk_name, "mmcblk0")))
 			(*dkc)->sector_size = SECTOR_SIZE;
 
 		if (dev->bdev->bd_part)
@@ -182,17 +186,17 @@ static void default_key_adjust_sector_size_and_iv(char **argv,
  * removed.  Also, dm-default-key requires that the "iv_large_sectors" option be
  * given whenever a non-default sector size is used.
  */
-static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+static int default_key_ctr(struct dm_target* ti, unsigned int argc, char** argv)
 {
-	struct default_key_c *dkc;
-	const struct dm_default_key_cipher *cipher;
+	struct default_key_c* dkc;
+	const struct dm_default_key_cipher* cipher;
 	u8 raw_key[DM_DEFAULT_KEY_MAX_WRAPPED_KEY_SIZE];
 	unsigned int raw_key_size;
 	unsigned int dun_bytes;
 	unsigned long long tmpll;
 	char dummy;
 	int err;
-	char *_argv[10];
+	char* _argv[10];
 	bool is_legacy = false;
 
 	if (argc >= 4 && !strcmp(argv[0], "AES-256-XTS")) {
@@ -240,7 +244,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	/* <key> */
 	raw_key_size = strlen(argv[1]);
 	if (raw_key_size > 2 * DM_DEFAULT_KEY_MAX_WRAPPED_KEY_SIZE ||
-	    raw_key_size % 2) {
+		raw_key_size % 2) {
 		ti->error = "Invalid keysize";
 		err = -EINVAL;
 		goto bad;
@@ -261,7 +265,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* <dev_path> */
 	err = dm_get_device(ti, argv[3], dm_table_get_mode(ti->table),
-			    &dkc->dev);
+		&dkc->dev);
 	if (err) {
 		ti->error = "Device lookup failed";
 		goto bad;
@@ -269,7 +273,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* <start> */
 	if (sscanf(argv[4], "%llu%c", &tmpll, &dummy) != 1 ||
-	    tmpll != (sector_t)tmpll) {
+		tmpll != (sector_t)tmpll) {
 		ti->error = "Invalid start sector";
 		err = -EINVAL;
 		goto bad;
@@ -285,7 +289,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	default_key_adjust_sector_size_and_iv(argv, ti, &dkc, raw_key,
-					      raw_key_size, is_legacy);
+		raw_key_size, is_legacy);
 
 	dkc->sector_bits = ilog2(dkc->sector_size);
 	if (ti->len & ((dkc->sector_size >> SECTOR_SHIFT) - 1)) {
@@ -295,20 +299,20 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	dkc->max_dun = (dkc->iv_offset + ti->len - 1) >>
-		       (dkc->sector_bits - SECTOR_SHIFT);
+		(dkc->sector_bits - SECTOR_SHIFT);
 	dun_bytes = DIV_ROUND_UP(fls64(dkc->max_dun), 8);
 
 	err = blk_crypto_init_key(&dkc->key, raw_key, raw_key_size,
-				  dkc->is_hw_wrapped, cipher->mode_num,
-				  dun_bytes, dkc->sector_size);
+		dkc->is_hw_wrapped, cipher->mode_num,
+		dun_bytes, dkc->sector_size);
 	if (err) {
 		ti->error = "Error initializing blk-crypto key";
 		goto bad;
 	}
 
 	err = blk_crypto_start_using_mode(cipher->mode_num, dun_bytes,
-					  dkc->sector_size, dkc->is_hw_wrapped,
-					  dkc->dev->bdev->bd_queue);
+		dkc->sector_size, dkc->is_hw_wrapped,
+		dkc->dev->bdev->bd_queue);
 	if (err) {
 		ti->error = "Error starting to use blk-crypto";
 		goto bad;
@@ -328,9 +332,9 @@ out:
 	return err;
 }
 
-static int default_key_map(struct dm_target *ti, struct bio *bio)
+static int default_key_map(struct dm_target* ti, struct bio* bio)
 {
-	const struct default_key_c *dkc = ti->private;
+	const struct default_key_c* dkc = ti->private;
 	sector_t sector_in_target;
 	u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE] = { 0 };
 
@@ -380,11 +384,11 @@ static int default_key_map(struct dm_target *ti, struct bio *bio)
 	return DM_MAPIO_REMAPPED;
 }
 
-static void default_key_status(struct dm_target *ti, status_type_t type,
-			       unsigned int status_flags, char *result,
-			       unsigned int maxlen)
+static void default_key_status(struct dm_target* ti, status_type_t type,
+	unsigned int status_flags, char* result,
+	unsigned int maxlen)
 {
-	const struct default_key_c *dkc = ti->private;
+	const struct default_key_c* dkc = ti->private;
 	unsigned int sz = 0;
 	int num_feature_args = 0;
 
@@ -396,7 +400,7 @@ static void default_key_status(struct dm_target *ti, status_type_t type,
 	case STATUSTYPE_TABLE:
 		/* Omit the key for now. */
 		DMEMIT("%s - %llu %s %llu", dkc->cipher_string, dkc->iv_offset,
-		       dkc->dev->name, (unsigned long long)dkc->start);
+			dkc->dev->name, (unsigned long long)dkc->start);
 
 		num_feature_args += !!ti->num_discard_bios;
 		if (dkc->sector_size != SECTOR_SIZE)
@@ -418,34 +422,35 @@ static void default_key_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int default_key_prepare_ioctl(struct dm_target *ti,
-				     struct block_device **bdev)
+static int default_key_prepare_ioctl(struct dm_target* ti,
+	struct block_device** bdev,
+	fmode_t* mode)
 {
-	const struct default_key_c *dkc = ti->private;
-	const struct dm_dev *dev = dkc->dev;
+	const struct default_key_c* dkc = ti->private;
+	const struct dm_dev* dev = dkc->dev;
 
 	*bdev = dev->bdev;
 
 	/* Only pass ioctls through if the device sizes match exactly. */
 	if (dkc->start != 0 ||
-	    ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT)
+		ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT)
 		return 1;
 	return 0;
 }
 
-static int default_key_iterate_devices(struct dm_target *ti,
-				       iterate_devices_callout_fn fn,
-				       void *data)
+static int default_key_iterate_devices(struct dm_target* ti,
+	iterate_devices_callout_fn fn,
+	void* data)
 {
-	const struct default_key_c *dkc = ti->private;
+	const struct default_key_c* dkc = ti->private;
 
 	return fn(ti, dkc->dev, dkc->start, ti->len, data);
 }
 
-static void default_key_io_hints(struct dm_target *ti,
-				 struct queue_limits *limits)
+static void default_key_io_hints(struct dm_target* ti,
+	struct queue_limits* limits)
 {
-	const struct default_key_c *dkc = ti->private;
+	const struct default_key_c* dkc = ti->private;
 	const unsigned int sector_size = dkc->sector_size;
 
 	limits->logical_block_size =
@@ -456,16 +461,16 @@ static void default_key_io_hints(struct dm_target *ti,
 }
 
 static struct target_type default_key_target = {
-	.name			= "default-key",
-	.version		= {2, 1, 0},
-	.module			= THIS_MODULE,
-	.ctr			= default_key_ctr,
-	.dtr			= default_key_dtr,
-	.map			= default_key_map,
-	.status			= default_key_status,
-	.prepare_ioctl		= default_key_prepare_ioctl,
-	.iterate_devices	= default_key_iterate_devices,
-	.io_hints		= default_key_io_hints,
+	.name = "default-key",
+	.version = {2, 1, 0},
+	.module = THIS_MODULE,
+	.ctr = default_key_ctr,
+	.dtr = default_key_dtr,
+	.map = default_key_map,
+	.status = default_key_status,
+	.prepare_ioctl = default_key_prepare_ioctl,
+	.iterate_devices = default_key_iterate_devices,
+	.io_hints = default_key_io_hints,
 };
 
 static int __init dm_default_key_init(void)

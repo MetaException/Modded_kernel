@@ -23,6 +23,7 @@
 #include "zcomp.h"
 #include "zram_dedup.h"
 
+#define SECTOR_SHIFT		9
 #define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
 #define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
 #define ZRAM_LOGICAL_BLOCK_SHIFT 12
@@ -31,19 +32,19 @@
 	(1 << (ZRAM_LOGICAL_BLOCK_SHIFT - SECTOR_SHIFT))
 
 
-/*
- * The lower ZRAM_FLAG_SHIFT bits of table.flags is for
- * object size (excluding header), the higher bits is for
- * zram_pageflags.
- *
- * zram is mainly used for memory efficiency so we want to keep memory
- * footprint small so we can squeeze size and flags into a field.
- * The lower ZRAM_FLAG_SHIFT bits is for object size (excluding header),
- * the higher bits is for zram_pageflags.
- */
+ /*
+  * The lower ZRAM_FLAG_SHIFT bits of table.flags is for
+  * object size (excluding header), the higher bits is for
+  * zram_pageflags.
+  *
+  * zram is mainly used for memory efficiency so we want to keep memory
+  * footprint small so we can squeeze size and flags into a field.
+  * The lower ZRAM_FLAG_SHIFT bits is for object size (excluding header),
+  * the higher bits is for zram_pageflags.
+  */
 #define ZRAM_FLAG_SHIFT 24
 
-/* Flags for zram pages (table[page_no].flags) */
+  /* Flags for zram pages (table[page_no].flags) */
 enum zram_pageflags {
 	/* zram slot is locked */
 	ZRAM_LOCK = ZRAM_FLAG_SHIFT,
@@ -69,7 +70,7 @@ struct zram_entry {
 /* Allocated for each disk page */
 struct zram_table_entry {
 	union {
-		struct zram_entry *entry;
+		struct zram_entry* entry;
 		unsigned long element;
 	};
 	unsigned long flags;
@@ -110,11 +111,11 @@ struct zram_hash {
 };
 
 struct zram {
-	struct zram_table_entry *table;
-	struct zs_pool *mem_pool;
-	struct zcomp *comp;
-	struct gendisk *disk;
-	struct zram_hash *hash;
+	struct zram_table_entry* table;
+	struct zs_pool* mem_pool;
+	struct zcomp* comp;
+	struct gendisk* disk;
+	struct zram_hash* hash;
 	size_t hash_size;
 	/* Prevent concurrent execution of device init */
 	struct rw_semaphore init_lock;
@@ -135,22 +136,22 @@ struct zram {
 	 */
 	bool claim; /* Protected by bdev->bd_mutex */
 	bool use_dedup;
-	struct file *backing_dev;
+	struct file* backing_dev;
 #ifdef CONFIG_ZRAM_WRITEBACK
 	spinlock_t wb_limit_lock;
 	bool wb_limit_enable;
 	u64 bd_wb_limit;
-	struct block_device *bdev;
+	struct block_device* bdev;
 	unsigned int old_block_size;
-	unsigned long *bitmap;
+	unsigned long* bitmap;
 	unsigned long nr_pages;
 #endif
 #ifdef CONFIG_ZRAM_MEMORY_TRACKING
-	struct dentry *debugfs_dir;
+	struct dentry* debugfs_dir;
 #endif
 };
 
-static inline bool zram_dedup_enabled(struct zram *zram)
+static inline bool zram_dedup_enabled(struct zram* zram)
 {
 #ifdef CONFIG_ZRAM_DEDUP
 	return zram->use_dedup;
@@ -159,5 +160,5 @@ static inline bool zram_dedup_enabled(struct zram *zram)
 #endif
 }
 
-void zram_entry_free(struct zram *zram, struct zram_entry *entry);
+void zram_entry_free(struct zram* zram, struct zram_entry* entry);
 #endif
