@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -425,6 +425,8 @@ void pmo_core_configure_dynamic_wake_events(struct wlan_objmgr_psoc *psoc)
 			pmo_tgt_enable_wow_wakeup_event(vdev, enable_mask);
 		if (disable_configured)
 			pmo_tgt_disable_wow_wakeup_event(vdev, disable_mask);
+
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_PMO_ID);
 	}
 
 }
@@ -976,6 +978,7 @@ QDF_STATUS pmo_core_psoc_bus_runtime_suspend(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS status;
 	int ret;
 	struct pmo_wow_enable_params wow_params = {0};
+ 	struct pmo_psoc_priv_obj *psoc_ctx;
 	qdf_time_t begin, end;
 	int pending;
 
@@ -1065,7 +1068,17 @@ QDF_STATUS pmo_core_psoc_bus_runtime_suspend(struct wlan_objmgr_psoc *psoc,
 		}
 	}
 
+	hif_pm_runtime_suspend_lock(hif_ctx);
+	psoc_ctx = pmo_psoc_get_priv(psoc);
+	if (pmo_core_get_wow_initial_wake_up(psoc_ctx)) {
+		hif_pm_runtime_suspend_unlock(hif_ctx);
+		pmo_err("Target wake up received before suspend completion");
+		status = QDF_STATUS_E_BUSY;
+		goto resume_hif;
+	}
+
 	hif_process_runtime_suspend_success(hif_ctx);
+ 	hif_pm_runtime_suspend_unlock(hif_ctx);
 
 	goto dec_psoc_ref;
 
