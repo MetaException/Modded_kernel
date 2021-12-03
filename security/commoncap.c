@@ -73,6 +73,13 @@ int __cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
 {
 	struct user_namespace *ns = targ_ns;
 
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+	if (cap == CAP_NET_RAW && in_egroup_p(AID_NET_RAW))
+		return 0;
+	if (cap == CAP_NET_ADMIN && in_egroup_p(AID_NET_ADMIN))
+		return 0;
+#endif
+
 	/* See if cred has the capability in the target user namespace
 	 * by examining the target user namespace and all of the target
 	 * user namespace's parents.
@@ -80,7 +87,11 @@ int __cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
 	for (;;) {
 		/* Do we have the necessary capabilities? */
 		if (ns == cred->user_ns)
+#ifdef CONFIG_FACTORY_BUILD
+			return 0;
+#else
 			return cap_raised(cred->cap_effective, cap) ? 0 : -EPERM;
+#endif
 
 		/*
 		 * If we're already at a lower level than we're looking for,
@@ -89,7 +100,7 @@ int __cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
 		if (ns->level <= cred->user_ns->level)
 			return -EPERM;
 
-		/* 
+		/*
 		 * The owner of the user namespace in the parent of the
 		 * user namespace has all caps.
 		 */

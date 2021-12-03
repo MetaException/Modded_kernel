@@ -1,5 +1,6 @@
 /*
  * Copyright © 2006-2009, Intel Corporation.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,6 +24,9 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include "mi_iommu.h"
+
+#include <linux/moduleparam.h>
 
 static bool iova_rcache_insert(struct iova_domain *iovad,
 			       unsigned long pfn,
@@ -55,6 +59,9 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->flush_cb = NULL;
 	iovad->fq = NULL;
 	init_iova_rcaches(iovad);
+	// add by xiaomi
+	INIT_RADIX_TREE(&iovad->rdroot, GFP_ATOMIC);
+	iovad->best_fit = false;
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
 
@@ -192,14 +199,28 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
+#ifdef CONFIG_ARM64_DMA_IOMMU_ALIGNMENT
+#define MAX_ALIGN(shift) (((1 << CONFIG_ARM64_DMA_IOMMU_ALIGNMENT) * PAGE_SIZE)\
+			  >> (shift))
+#else
+#define MAX_ALIGN(shift) ULONG_MAX
+#endif
+
 /*
  * Computes the padding size required, to make the start address
- * naturally aligned on the power-of-two order of its size
+ * naturally aligned on the minimum of the power-of-two order of its size and
+ * max_align
  */
 static unsigned int
-iova_get_pad_size(unsigned int size, unsigned int limit_pfn)
+iova_get_pad_size(unsigned int size, unsigned int limit_pfn,
+		  unsigned int max_align)
 {
-	return (limit_pfn - size) & (__roundup_pow_of_two(size) - 1);
+	unsigned int align = __roundup_pow_of_two(size);
+
+	if (align > max_align)
+		align = max_align;
+
+	return (limit_pfn - size) & (align - 1);
 }
 
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
@@ -207,15 +228,26 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 			struct iova *new, bool size_aligned)
 {
 	struct rb_node *prev, *curr = NULL;
+	bool matched = false;
 	unsigned long flags;
 	unsigned long saved_pfn;
 	unsigned int pad_size = 0;
+	unsigned long shift = iova_shift(iovad);
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	saved_pfn = limit_pfn;
-	curr = __get_cached_rbnode(iovad, &limit_pfn);
+
+	if (iovad->best_fit)
+		size_aligned = false;
+	curr = rdxtree_matched_gap(iovad, &limit_pfn, size, size_aligned);
+	if (!curr)
+		curr = __get_cached_rbnode(iovad, &limit_pfn);
+	else
+		matched = true;
+
 	prev = curr;
+
 	while (curr) {
 		struct iova *curr_iova = rb_entry(curr, struct iova, node);
 
@@ -223,7 +255,8 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 			goto move_left;
 		} else if (limit_pfn > curr_iova->pfn_hi) {
 			if (size_aligned)
-				pad_size = iova_get_pad_size(size, limit_pfn);
+				pad_size = iova_get_pad_size(size, limit_pfn,
+							     MAX_ALIGN(shift));
 			if ((curr_iova->pfn_hi + size + pad_size) < limit_pfn)
 				break;	/* found a free slot */
 		}
@@ -235,7 +268,8 @@ move_left:
 
 	if (!curr) {
 		if (size_aligned)
-			pad_size = iova_get_pad_size(size, limit_pfn);
+			pad_size = iova_get_pad_size(size, limit_pfn,
+						     MAX_ALIGN(shift));
 		if ((iovad->start_pfn + size + pad_size) > limit_pfn) {
 			spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 			return -ENOMEM;
@@ -248,10 +282,11 @@ move_left:
 
 	/* If we have 'prev', it's a valid place to start the insertion. */
 	iova_insert_rbtree(&iovad->rbroot, new, prev);
-	__cached_rbnode_insert_update(iovad, saved_pfn, new);
+	if (!matched)
+		__cached_rbnode_insert_update(iovad, saved_pfn, new);
 
+	rdxtree_update_gap(iovad, curr, rb_next(&new->node), &new->node);
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
-
 
 	return 0;
 }
@@ -369,6 +404,7 @@ private_find_iova(struct iova_domain *iovad, unsigned long pfn)
 static void private_free_iova(struct iova_domain *iovad, struct iova *iova)
 {
 	assert_spin_locked(&iovad->iova_rbtree_lock);
+	rdxtree_insert_gap(iovad, &iova->node);
 	__cached_rbnode_delete_update(iovad, iova);
 	rb_erase(&iova->node, &iovad->rbroot);
 	free_iova_mem(iova);
@@ -461,6 +497,7 @@ retry:
 		flushed_rcache = true;
 		for_each_online_cpu(cpu)
 			free_cpu_cached_iovas(cpu, iovad);
+		iovad->cached32_node = NULL;
 		goto retry;
 	}
 
@@ -633,6 +670,7 @@ void put_iova_domain(struct iova_domain *iovad)
 	node = rb_first(&iovad->rbroot);
 	while (node) {
 		struct iova *iova = rb_entry(node, struct iova, node);
+		rdxtree_insert_gap(iovad, &iova->node);
 
 		rb_erase(node, &iovad->rbroot);
 		free_iova_mem(iova);
@@ -725,6 +763,7 @@ reserve_iova(struct iova_domain *iovad,
 	 * or need to insert remaining non overlap addr range
 	 */
 	iova = __insert_new_range(iovad, pfn_lo, pfn_hi);
+	rdxtree_update_gap(iovad, rb_prev(&iova->node), rb_next(&iova->node), &iova->node);
 finish:
 
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
@@ -778,15 +817,18 @@ split_and_remove_iova(struct iova_domain *iovad, struct iova *iova,
 			goto error;
 	}
 
+	rdxtree_insert_gap(iovad, &iova->node);
 	__cached_rbnode_delete_update(iovad, iova);
 	rb_erase(&iova->node, &iovad->rbroot);
 
 	if (prev) {
 		iova_insert_rbtree(&iovad->rbroot, prev, NULL);
+		rdxtree_update_gap(iovad, rb_prev(&prev->node), rb_next(&prev->node), &prev->node);
 		iova->pfn_lo = pfn_lo;
 	}
 	if (next) {
 		iova_insert_rbtree(&iovad->rbroot, next, NULL);
+		rdxtree_update_gap(iovad, rb_prev(&next->node), rb_next(&next->node), &next->node);
 		iova->pfn_hi = pfn_hi;
 	}
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
@@ -1090,6 +1132,11 @@ void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
 		iova_magazine_free_pfns(cpu_rcache->prev, iovad);
 		spin_unlock_irqrestore(&cpu_rcache->lock, flags);
 	}
+}
+
+void iommu_debug_init(struct iova_domain *iovad, const char *name)
+{
+	mi_iommu_debug_init(iovad, name);
 }
 
 MODULE_AUTHOR("Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>");

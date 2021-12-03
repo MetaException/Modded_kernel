@@ -2,6 +2,7 @@
  * class-dual-role.c
  *
  * Copyright (C) 2015 Google, Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -82,6 +83,9 @@ static void dual_role_changed_work(struct work_struct *work)
 
 void dual_role_instance_changed(struct dual_role_phy_instance *dual_role)
 {
+	if (!dual_role)
+		return;
+
 	dev_dbg(&dual_role->dev, "%s\n", __func__);
 	pm_wakeup_event(&dual_role->dev, DUAL_ROLE_NOTIFICATION_TIMEOUT);
 	schedule_work(&dual_role->changed_work);
@@ -147,6 +151,7 @@ __dual_role_register(struct device *parent,
 	dev->release = dual_role_dev_release;
 	dev_set_drvdata(dev, dual_role);
 	dual_role->desc = desc;
+	dual_role->reverse_flag = false;
 
 	rc = dev_set_name(dev, "%s", desc->name);
 	if (rc)
@@ -385,6 +390,9 @@ static ssize_t dual_role_store_property(struct device *dev,
 
 setprop:
 	ret = dual_role->desc->set_property(dual_role, off, &value);
+
+	if ((off == DUAL_ROLE_PROP_PR && value == DUAL_ROLE_PROP_PR_SRC) || (off == DUAL_ROLE_PROP_DR && value == DUAL_ROLE_PROP_DR_HOST))
+		dual_role->reverse_flag = true;
 
 error:
 	kfree(dup_buf);

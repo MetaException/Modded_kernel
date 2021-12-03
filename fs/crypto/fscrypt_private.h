@@ -190,7 +190,6 @@ struct fscrypt_prepared_key {
  * inode is evicted.
  */
 struct fscrypt_info {
-
 	/* The key in a form prepared for actual encryption/decryption */
 	struct fscrypt_prepared_key	ci_key;
 

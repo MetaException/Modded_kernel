@@ -45,6 +45,7 @@ lib-$(CONFIG_DMA_VIRT_OPS) += dma-virt.o
 lib-y	+= kobject.o klist.o
 obj-y	+= lockref.o
 
+KASAN_SANITIZE_find_bit.o := n
 obj-y += bcd.o div64.o sort.o parser.o debug_locks.o random32.o \
 	 bust_spinlocks.o kasprintf.o bitmap.o scatterlist.o \
 	 gcd.o lcm.o list_sort.o uuid.o flex_array.o iov_iter.o clz_ctz.o \
@@ -227,6 +228,7 @@ obj-$(CONFIG_PERCPU_TEST) += percpu_test.o
 obj-$(CONFIG_ASN1) += asn1_decoder.o
 
 obj-$(CONFIG_FONT_SUPPORT) += fonts/
+
 
 obj-$(CONFIG_PRIME_NUMBERS) += prime_numbers.o
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2001, 2002 Sistina Software (UK) Limited.
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (C) 2004-2008 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
@@ -441,7 +442,7 @@ retry:
 		goto out;
 	}
 
-	r = tgt->type->prepare_ioctl(tgt, bdev, mode);
+	r = tgt->type->prepare_ioctl(tgt, bdev);
 	if (r < 0)
 		goto out;
 
@@ -2178,8 +2179,7 @@ static int dm_init_inline_encryption(struct mapped_device *md)
 		   BLK_CRYPTO_FEATURE_WRAPPED_KEYS;
 	memset(mode_masks, 0xFF, sizeof(mode_masks));
 
-	md->queue->ksm = keyslot_manager_create_passthrough(NULL,
-							    &dm_ksm_ll_ops,
+	md->queue->ksm = keyslot_manager_create_passthrough(&dm_ksm_ll_ops,
 							    features,
 							    mode_masks, md);
 	if (!md->queue->ksm)

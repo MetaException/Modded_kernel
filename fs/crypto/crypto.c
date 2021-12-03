@@ -31,34 +31,33 @@ static unsigned int num_prealloc_crypto_pages = 32;
 
 module_param(num_prealloc_crypto_pages, uint, 0444);
 MODULE_PARM_DESC(num_prealloc_crypto_pages,
-		"Number of crypto pages to preallocate");
+	"Number of crypto pages to preallocate");
 
-static mempool_t *fscrypt_bounce_page_pool = NULL;
+static mempool_t* fscrypt_bounce_page_pool = NULL;
 
-static struct workqueue_struct *fscrypt_read_workqueue;
+static struct workqueue_struct* fscrypt_read_workqueue;
 static DEFINE_MUTEX(fscrypt_init_mutex);
 
-struct kmem_cache *fscrypt_info_cachep;
+struct kmem_cache* fscrypt_info_cachep;
 
-void fscrypt_enqueue_decrypt_work(struct work_struct *work)
+void fscrypt_enqueue_decrypt_work(struct work_struct* work)
 {
 	queue_work(fscrypt_read_workqueue, work);
 }
 EXPORT_SYMBOL(fscrypt_enqueue_decrypt_work);
 
-struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags)
+struct page* fscrypt_alloc_bounce_page(gfp_t gfp_flags)
 {
 	return mempool_alloc(fscrypt_bounce_page_pool, gfp_flags);
 }
 
 /**
  * fscrypt_free_bounce_page() - free a ciphertext bounce page
- * @bounce_page: the bounce page to free, or NULL
  *
  * Free a bounce page that was allocated by fscrypt_encrypt_pagecache_blocks(),
  * or by fscrypt_alloc_bounce_page() directly.
  */
-void fscrypt_free_bounce_page(struct page *bounce_page)
+void fscrypt_free_bounce_page(struct page* bounce_page)
 {
 	if (!bounce_page)
 		return;
@@ -76,38 +75,47 @@ EXPORT_SYMBOL(fscrypt_free_bounce_page);
  * needs to know about any IV generation methods where the low bits of IV don't
  * simply contain the lblk_num (e.g., IV_INO_LBLK_32).
  */
-void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
-			 const struct fscrypt_info *ci)
+void fscrypt_generate_iv(union fscrypt_iv* iv, u64 lblk_num,
+	const struct fscrypt_info* ci)
 {
 	u8 flags = fscrypt_policy_flags(&ci->ci_policy);
 
+	bool inlinecrypt = false;
+
+#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
+	inlinecrypt = ci->ci_inlinecrypt;
+#endif
 	memset(iv, 0, ci->ci_mode->ivsize);
 
-	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
+	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64 ||
+		((fscrypt_policy_contents_mode(&ci->ci_policy) ==
+			FSCRYPT_MODE_PRIVATE) && inlinecrypt)) {
 		WARN_ON_ONCE(lblk_num > U32_MAX);
 		WARN_ON_ONCE(ci->ci_inode->i_ino > U32_MAX);
 		lblk_num |= (u64)ci->ci_inode->i_ino << 32;
-	} else if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
+	}
+	else if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
 		WARN_ON_ONCE(lblk_num > U32_MAX);
 		lblk_num = (u32)(ci->ci_hashed_ino + lblk_num);
-	} else if (flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
+	}
+	else if (flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
 		memcpy(iv->nonce, ci->ci_nonce, FS_KEY_DERIVATION_NONCE_SIZE);
 	}
 	iv->lblk_num = cpu_to_le64(lblk_num);
 }
 
 /* Encrypt or decrypt a single filesystem block of file contents */
-int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
-			u64 lblk_num, struct page *src_page,
-			struct page *dest_page, unsigned int len,
-			unsigned int offs, gfp_t gfp_flags)
+int fscrypt_crypt_block(const struct inode* inode, fscrypt_direction_t rw,
+	u64 lblk_num, struct page* src_page,
+	struct page* dest_page, unsigned int len,
+	unsigned int offs, gfp_t gfp_flags)
 {
 	union fscrypt_iv iv;
-	struct skcipher_request *req = NULL;
+	struct skcipher_request* req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist dst, src;
-	struct fscrypt_info *ci = inode->i_crypt_info;
-	struct crypto_skcipher *tfm = ci->ci_key.tfm;
+	struct fscrypt_info* ci = inode->i_crypt_info;
+	struct crypto_skcipher* tfm = ci->ci_key.tfm;
 	int res = 0;
 
 	if (WARN_ON_ONCE(len <= 0))
@@ -137,15 +145,14 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 	skcipher_request_free(req);
 	if (res) {
 		fscrypt_err(inode, "%scryption failed for block %llu: %d",
-			    (rw == FS_DECRYPT ? "De" : "En"), lblk_num, res);
+			(rw == FS_DECRYPT ? "De" : "En"), lblk_num, res);
 		return res;
 	}
 	return 0;
 }
 
 /**
- * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a
- *					pagecache page
+ * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a pagecache page
  * @page:      The locked pagecache page containing the block(s) to encrypt
  * @len:       Total size of the block(s) to encrypt.  Must be a nonzero
  *		multiple of the filesystem's block size.
@@ -168,18 +175,18 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
  *
  * Return: the new encrypted bounce page on success; an ERR_PTR() on failure
  */
-struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
-					      unsigned int len,
-					      unsigned int offs,
-					      gfp_t gfp_flags)
+struct page* fscrypt_encrypt_pagecache_blocks(struct page* page,
+	unsigned int len,
+	unsigned int offs,
+	gfp_t gfp_flags)
 
 {
-	const struct inode *inode = page->mapping->host;
+	const struct inode* inode = page->mapping->host;
 	const unsigned int blockbits = inode->i_blkbits;
 	const unsigned int blocksize = 1 << blockbits;
-	struct page *ciphertext_page;
+	struct page* ciphertext_page;
 	u64 lblk_num = ((u64)page->index << (PAGE_SHIFT - blockbits)) +
-		       (offs >> blockbits);
+		(offs >> blockbits);
 	unsigned int i;
 	int err;
 
@@ -195,8 +202,8 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 
 	for (i = offs; i < offs + len; i += blocksize, lblk_num++) {
 		err = fscrypt_crypt_block(inode, FS_ENCRYPT, lblk_num,
-					  page, ciphertext_page,
-					  blocksize, i, gfp_flags);
+			page, ciphertext_page,
+			blocksize, i, gfp_flags);
 		if (err) {
 			fscrypt_free_bounce_page(ciphertext_page);
 			return ERR_PTR(err);
@@ -225,18 +232,17 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  *
  * Return: 0 on success; -errno on failure
  */
-int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
-				  unsigned int len, unsigned int offs,
-				  u64 lblk_num, gfp_t gfp_flags)
+int fscrypt_encrypt_block_inplace(const struct inode* inode, struct page* page,
+	unsigned int len, unsigned int offs,
+	u64 lblk_num, gfp_t gfp_flags)
 {
 	return fscrypt_crypt_block(inode, FS_ENCRYPT, lblk_num, page, page,
-				   len, offs, gfp_flags);
+		len, offs, gfp_flags);
 }
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
 /**
- * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a
- *					pagecache page
+ * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a pagecache page
  * @page:      The locked pagecache page containing the block(s) to decrypt
  * @len:       Total size of the block(s) to decrypt.  Must be a nonzero
  *		multiple of the filesystem's block size.
@@ -251,14 +257,14 @@ EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
  *
  * Return: 0 on success; -errno on failure
  */
-int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
-				     unsigned int offs)
+int fscrypt_decrypt_pagecache_blocks(struct page* page, unsigned int len,
+	unsigned int offs)
 {
-	const struct inode *inode = page->mapping->host;
+	const struct inode* inode = page->mapping->host;
 	const unsigned int blockbits = inode->i_blkbits;
 	const unsigned int blocksize = 1 << blockbits;
 	u64 lblk_num = ((u64)page->index << (PAGE_SHIFT - blockbits)) +
-		       (offs >> blockbits);
+		(offs >> blockbits);
 	unsigned int i;
 	int err;
 
@@ -270,7 +276,7 @@ int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
 
 	for (i = offs; i < offs + len; i += blocksize, lblk_num++) {
 		err = fscrypt_crypt_block(inode, FS_DECRYPT, lblk_num, page,
-					  page, blocksize, i, GFP_NOFS);
+			page, blocksize, i, GFP_NOFS);
 		if (err)
 			return err;
 	}
@@ -294,12 +300,12 @@ EXPORT_SYMBOL(fscrypt_decrypt_pagecache_blocks);
  *
  * Return: 0 on success; -errno on failure
  */
-int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
-				  unsigned int len, unsigned int offs,
-				  u64 lblk_num)
+int fscrypt_decrypt_block_inplace(const struct inode* inode, struct page* page,
+	unsigned int len, unsigned int offs,
+	u64 lblk_num)
 {
 	return fscrypt_crypt_block(inode, FS_DECRYPT, lblk_num, page, page,
-				   len, offs, GFP_NOFS);
+		len, offs, GFP_NOFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 
@@ -336,11 +342,11 @@ out_unlock:
 	return err;
 }
 
-void fscrypt_msg(const struct inode *inode, const char *level,
-		 const char *fmt, ...)
+void fscrypt_msg(const struct inode* inode, const char* level,
+	const char* fmt, ...)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
-				      DEFAULT_RATELIMIT_BURST);
+		DEFAULT_RATELIMIT_BURST);
 	struct va_format vaf;
 	va_list args;
 
@@ -352,7 +358,7 @@ void fscrypt_msg(const struct inode *inode, const char *level,
 	vaf.va = &args;
 	if (inode)
 		printk("%sfscrypt (%s, inode %lu): %pV\n",
-		       level, inode->i_sb->s_id, inode->i_ino, &vaf);
+			level, inode->i_sb->s_id, inode->i_ino, &vaf);
 	else
 		printk("%sfscrypt: %pV\n", level, &vaf);
 	va_end(args);
@@ -360,8 +366,6 @@ void fscrypt_msg(const struct inode *inode, const char *level,
 
 /**
  * fscrypt_init() - Set up for fs encryption.
- *
- * Return: 0 on success; -errno on failure
  */
 static int __init fscrypt_init(void)
 {
@@ -376,8 +380,8 @@ static int __init fscrypt_init(void)
 	 * which blocks reads from completing, over regular application tasks.
 	 */
 	fscrypt_read_workqueue = alloc_workqueue("fscrypt_read_queue",
-						 WQ_UNBOUND | WQ_HIGHPRI,
-						 num_online_cpus());
+		WQ_UNBOUND | WQ_HIGHPRI,
+		num_online_cpus());
 	if (!fscrypt_read_workqueue)
 		goto fail;
 
