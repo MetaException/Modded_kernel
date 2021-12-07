@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -36,17 +36,17 @@
 
 #define HFI_MAX_POLL_TRY 5
 
-static int cam_bps_cpas_vote(struct cam_bps_device_core_info *core_info,
-			struct cam_icp_cpas_vote *cpas_vote)
+static int cam_bps_cpas_vote(struct cam_bps_device_core_info* core_info,
+	struct cam_icp_cpas_vote* cpas_vote)
 {
 	int rc = 0;
 
 	if (cpas_vote->ahb_vote_valid)
 		rc = cam_cpas_update_ahb_vote(core_info->cpas_handle,
-				&cpas_vote->ahb_vote);
+			&cpas_vote->ahb_vote);
 	if (cpas_vote->axi_vote_valid)
 		rc = cam_cpas_update_axi_vote(core_info->cpas_handle,
-				&cpas_vote->axi_vote);
+			&cpas_vote->axi_vote);
 
 	if (rc < 0)
 		CAM_ERR(CAM_ICP, "cpas vote is failed: %d", rc);
@@ -55,12 +55,12 @@ static int cam_bps_cpas_vote(struct cam_bps_device_core_info *core_info,
 }
 
 
-int cam_bps_init_hw(void *device_priv,
-	void *init_hw_args, uint32_t arg_size)
+int cam_bps_init_hw(void* device_priv,
+	void* init_hw_args, uint32_t arg_size)
 {
-	struct cam_hw_info *bps_dev = device_priv;
-	struct cam_hw_soc_info *soc_info = NULL;
-	struct cam_bps_device_core_info *core_info = NULL;
+	struct cam_hw_info* bps_dev = device_priv;
+	struct cam_hw_soc_info* soc_info = NULL;
+	struct cam_bps_device_core_info* core_info = NULL;
 	struct cam_icp_cpas_vote cpas_vote;
 	int rc = 0;
 
@@ -70,7 +70,7 @@ int cam_bps_init_hw(void *device_priv,
 	}
 
 	soc_info = &bps_dev->soc_info;
-	core_info = (struct cam_bps_device_core_info *)bps_dev->core_info;
+	core_info = (struct cam_bps_device_core_info*)bps_dev->core_info;
 
 	if ((!soc_info) || (!core_info)) {
 		CAM_ERR(CAM_ICP, "soc_info = %pK core_info = %pK",
@@ -84,7 +84,7 @@ int cam_bps_init_hw(void *device_priv,
 	cpas_vote.axi_vote.uncompressed_bw = CAM_CPAS_DEFAULT_AXI_BW;
 
 	rc = cam_cpas_start(core_info->cpas_handle,
-			&cpas_vote.ahb_vote, &cpas_vote.axi_vote);
+		&cpas_vote.ahb_vote, &cpas_vote.axi_vote);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "cpass start failed: %d", rc);
 		return rc;
@@ -98,19 +98,20 @@ int cam_bps_init_hw(void *device_priv,
 			CAM_ERR(CAM_ICP, "cpas stop is failed");
 		else
 			core_info->cpas_start = false;
-	} else {
+	}
+	else {
 		core_info->clk_enable = true;
 	}
 
 	return rc;
 }
 
-int cam_bps_deinit_hw(void *device_priv,
-	void *init_hw_args, uint32_t arg_size)
+int cam_bps_deinit_hw(void* device_priv,
+	void* init_hw_args, uint32_t arg_size)
 {
-	struct cam_hw_info *bps_dev = device_priv;
-	struct cam_hw_soc_info *soc_info = NULL;
-	struct cam_bps_device_core_info *core_info = NULL;
+	struct cam_hw_info* bps_dev = device_priv;
+	struct cam_hw_soc_info* soc_info = NULL;
+	struct cam_bps_device_core_info* core_info = NULL;
 	int rc = 0;
 
 	if (!device_priv) {
@@ -119,7 +120,7 @@ int cam_bps_deinit_hw(void *device_priv,
 	}
 
 	soc_info = &bps_dev->soc_info;
-	core_info = (struct cam_bps_device_core_info *)bps_dev->core_info;
+	core_info = (struct cam_bps_device_core_info*)bps_dev->core_info;
 	if ((!soc_info) || (!core_info)) {
 		CAM_ERR(CAM_ICP, "soc_info = %pK core_info = %pK",
 			soc_info, core_info);
@@ -141,16 +142,16 @@ int cam_bps_deinit_hw(void *device_priv,
 	return rc;
 }
 
-static int cam_bps_handle_pc(struct cam_hw_info *bps_dev)
+static int cam_bps_handle_pc(struct cam_hw_info* bps_dev)
 {
-	struct cam_hw_soc_info *soc_info = NULL;
-	struct cam_bps_device_core_info *core_info = NULL;
-	struct cam_bps_device_hw_info *hw_info = NULL;
+	struct cam_hw_soc_info* soc_info = NULL;
+	struct cam_bps_device_core_info* core_info = NULL;
+	struct cam_bps_device_hw_info* hw_info = NULL;
 	int pwr_ctrl;
 	int pwr_status;
 
 	soc_info = &bps_dev->soc_info;
-	core_info = (struct cam_bps_device_core_info *)bps_dev->core_info;
+	core_info = (struct cam_bps_device_core_info*)bps_dev->core_info;
 	hw_info = core_info->bps_hw_info;
 
 	cam_cpas_reg_read(core_info->cpas_handle,
@@ -171,6 +172,7 @@ static int cam_bps_handle_pc(struct cam_hw_info *bps_dev)
 			return -EINVAL;
 		}
 	}
+
 	cam_bps_get_gdsc_control(soc_info);
 	cam_cpas_reg_read(core_info->cpas_handle,
 		CAM_CPAS_REG_CPASTOP, hw_info->pwr_ctrl, true,
@@ -184,17 +186,17 @@ static int cam_bps_handle_pc(struct cam_hw_info *bps_dev)
 	return 0;
 }
 
-static int cam_bps_handle_resume(struct cam_hw_info *bps_dev)
+static int cam_bps_handle_resume(struct cam_hw_info* bps_dev)
 {
-	struct cam_hw_soc_info *soc_info = NULL;
-	struct cam_bps_device_core_info *core_info = NULL;
-	struct cam_bps_device_hw_info *hw_info = NULL;
+	struct cam_hw_soc_info* soc_info = NULL;
+	struct cam_bps_device_core_info* core_info = NULL;
+	struct cam_bps_device_hw_info* hw_info = NULL;
 	int pwr_ctrl;
 	int pwr_status;
 	int rc = 0;
 
 	soc_info = &bps_dev->soc_info;
-	core_info = (struct cam_bps_device_core_info *)bps_dev->core_info;
+	core_info = (struct cam_bps_device_core_info*)bps_dev->core_info;
 	hw_info = core_info->bps_hw_info;
 
 	cam_cpas_reg_read(core_info->cpas_handle,
@@ -217,8 +219,8 @@ static int cam_bps_handle_resume(struct cam_hw_info *bps_dev)
 	return rc;
 }
 
-static int cam_bps_cmd_reset(struct cam_hw_soc_info *soc_info,
-	struct cam_bps_device_core_info *core_info)
+static int cam_bps_cmd_reset(struct cam_hw_soc_info* soc_info,
+	struct cam_bps_device_core_info* core_info)
 {
 	uint32_t retry_cnt = 0;
 	uint32_t status = 0;
@@ -230,7 +232,7 @@ static int cam_bps_cmd_reset(struct cam_hw_soc_info *soc_info,
 
 	if (!core_info->clk_enable || !core_info->cpas_start) {
 		CAM_ERR(CAM_ICP, "BPS reset failed. clk_en %d cpas_start %d",
-				core_info->clk_enable, core_info->cpas_start);
+			core_info->clk_enable, core_info->cpas_start);
 		return -EINVAL;
 	}
 
@@ -295,13 +297,13 @@ static int cam_bps_cmd_reset(struct cam_hw_soc_info *soc_info,
 	return rc;
 }
 
-int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
-	void *cmd_args, uint32_t arg_size)
+int cam_bps_process_cmd(void* device_priv, uint32_t cmd_type,
+	void* cmd_args, uint32_t arg_size)
 {
-	struct cam_hw_info *bps_dev = device_priv;
-	struct cam_hw_soc_info *soc_info = NULL;
-	struct cam_bps_device_core_info *core_info = NULL;
-	struct cam_bps_device_hw_info *hw_info = NULL;
+	struct cam_hw_info* bps_dev = device_priv;
+	struct cam_hw_soc_info* soc_info = NULL;
+	struct cam_bps_device_core_info* core_info = NULL;
+	struct cam_bps_device_hw_info* hw_info = NULL;
 	int rc = 0;
 
 	if (!device_priv) {
@@ -315,12 +317,12 @@ int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
 	}
 
 	soc_info = &bps_dev->soc_info;
-	core_info = (struct cam_bps_device_core_info *)bps_dev->core_info;
+	core_info = (struct cam_bps_device_core_info*)bps_dev->core_info;
 	hw_info = core_info->bps_hw_info;
 
 	switch (cmd_type) {
 	case CAM_ICP_BPS_CMD_VOTE_CPAS: {
-		struct cam_icp_cpas_vote *cpas_vote = cmd_args;
+		struct cam_icp_cpas_vote* cpas_vote = cmd_args;
 
 		if (!cmd_args) {
 			CAM_ERR(CAM_ICP, "cmd args NULL");
@@ -332,7 +334,7 @@ int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
 	}
 
 	case CAM_ICP_BPS_CMD_CPAS_START: {
-		struct cam_icp_cpas_vote *cpas_vote = cmd_args;
+		struct cam_icp_cpas_vote* cpas_vote = cmd_args;
 
 		if (!cmd_args) {
 			CAM_ERR(CAM_ICP, "cmd args NULL");
@@ -341,8 +343,8 @@ int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
 
 		if (!core_info->cpas_start) {
 			rc = cam_cpas_start(core_info->cpas_handle,
-					&cpas_vote->ahb_vote,
-					&cpas_vote->axi_vote);
+				&cpas_vote->ahb_vote,
+				&cpas_vote->axi_vote);
 			core_info->cpas_start = true;
 		}
 		break;
@@ -361,8 +363,8 @@ int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
 		rc = cam_bps_handle_resume(bps_dev);
 		break;
 	case CAM_ICP_BPS_CMD_UPDATE_CLK: {
-		struct cam_a5_clk_update_cmd *clk_upd_cmd =
-			(struct cam_a5_clk_update_cmd *)cmd_args;
+		struct cam_a5_clk_update_cmd* clk_upd_cmd =
+			(struct cam_a5_clk_update_cmd*)cmd_args;
 		uint32_t clk_rate = clk_upd_cmd->curr_clk_rate;
 
 		CAM_DBG(CAM_ICP, "bps_src_clk rate = %d", (int)clk_rate);
@@ -389,15 +391,19 @@ int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
 		rc = cam_bps_update_clk_rate(soc_info, clk_rate);
 		if (rc)
 			CAM_ERR(CAM_ICP, "Failed to update clk");
-		}
-		break;
+	}
+								   break;
 	case CAM_ICP_BPS_CMD_DISABLE_CLK:
+		mutex_lock(&bps_dev->hw_mutex);
 		if (core_info->clk_enable == true)
 			cam_bps_toggle_clk(soc_info, false);
 		core_info->clk_enable = false;
+		mutex_unlock(&bps_dev->hw_mutex);
 		break;
 	case CAM_ICP_BPS_CMD_RESET:
+		mutex_lock(&bps_dev->hw_mutex);
 		rc = cam_bps_cmd_reset(soc_info, core_info);
+		mutex_unlock(&bps_dev->hw_mutex);
 		break;
 	default:
 		CAM_ERR(CAM_ICP, "Invalid Cmd Type:%u", cmd_type);
@@ -407,7 +413,7 @@ int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
 	return rc;
 }
 
-irqreturn_t cam_bps_irq(int irq_num, void *data)
+irqreturn_t cam_bps_irq(int irq_num, void* data)
 {
 	return IRQ_HANDLED;
 }

@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2003 Sistina Software (UK) Limited.
- * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (C) 2004, 2010-2011 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
@@ -454,7 +453,8 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int flakey_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
+static int flakey_prepare_ioctl(struct dm_target *ti,
+		struct block_device **bdev, fmode_t *mode)
 {
 	struct flakey_c *fc = ti->private;
 

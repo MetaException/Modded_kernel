@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2014 Facebook. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This file is released under the GPL.
  */
@@ -751,7 +750,8 @@ static void log_writes_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int log_writes_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
+static int log_writes_prepare_ioctl(struct dm_target *ti,
+		struct block_device **bdev, fmode_t *mode)
 {
 	struct log_writes_c *lc = ti->private;
 	struct dm_dev *dev = lc->dev;
