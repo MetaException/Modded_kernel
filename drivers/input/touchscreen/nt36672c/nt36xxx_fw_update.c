@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 - 2018 Novatek, Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * $Revision: 32206 $
  * $Date: 2018-08-10 19:23:04 +0800 (週五, 10 八月 2018) $
@@ -1119,8 +1120,14 @@ void Boot_Update_Firmware(struct work_struct *work)
 {
 	mutex_lock(&ts->lock);
 	nvt_match_fw();
-	NVT_ERR("using built-in fw");
-	nvt_update_firmware(ts->fw_name);
+	if (nvt_get_dbgfw_status()) {
+		if (nvt_update_firmware(DEFAULT_DEBUG_FW_NAME) < 0) {
+			NVT_ERR("use built-in fw");
+			nvt_update_firmware(ts->fw_name);
+		}
+	} else {
+		nvt_update_firmware(ts->fw_name);
+	}
 	nvt_get_fw_info();
 	ts->first_load_done = true;
 	mutex_unlock(&ts->lock);
