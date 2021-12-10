@@ -625,7 +625,7 @@ static void _msm_drm_commit_work_cb(struct kthread_work *work)
 	struct msm_commit *c = container_of(work, typeof(*c), commit_work);
 
 	ktime_t start, end;
-
+	s64 duration;
 	start = ktime_get();
 	frame_stat_collector(0, COMMIT_START_TS);
 
