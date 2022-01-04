@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) "devfreq_boost: " fmt
 
 #include <linux/devfreq_boost.h>
-#include <drm/drm_notifier.h>
+#include <linux/drm_notifier.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
@@ -182,7 +182,7 @@ static int drm_notifier_cb(struct notifier_block *nb, unsigned long action,
 {
 	struct df_boost_drv *d = container_of(nb, typeof(*d), drm_notif);
 	int i;
-	struct drm_notify_data *evdata = data;
+	struct drm_notifier *evdata = data;
 	int *blank = evdata->data;
 
 	/* Parse framebuffer blank events as soon as they occur */
